@@ -1,0 +1,15 @@
+﻿  StdAfx.cpp
+  ColorPickerCB.cpp
+  ColorStatic.cpp
+  CommsLamp.cpp
+  DragSizerBmp.cpp
+  dregkey.cpp
+  MicroTick.cpp
+  mylib.cpp
+D:\DEVELOPMENT\1 WP\05 General\01 One Modbus Sim\New folder\ModRSsim2Source8.21.2.7_v7\code\src\mylib\mylib.cpp(429,37): warning C4477: 'sprintf_s' : format string '%ld' requires an argument of type 'long', but variadic argument 1 has type 'DWORD *'
+  (compiling source file '/mylib.cpp')
+  
+  Resizer.cpp
+  StatLink.cpp
+  Generating Code...
+  MYLIB.vcxproj -> D:\DEVELOPMENT\1 WP\05 General\01 One Modbus Sim\New folder\ModRSsim2Source8.21.2.7_v7\code\src\mylib\Release\MYLIB.lib

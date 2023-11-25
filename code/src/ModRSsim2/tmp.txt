@@ -1,0 +1,106 @@
+
+// ------------------------------ BuildMessagePreamble -------------------------
+// PURPOSE: Builds the STN,FN and LEN bytes of the telegram.
+// on completion dataPtr pointsto where the data must be packed in (if any)
+CHAR * CMODMessage::BuildMessagePreamble(BOOL error, WORD errorCode)
+{
+BYTE *pWorkArea;
+BYTE numBytesData;
+
+   //
+   pWorkArea = (BYTE*)buffer;
+   *pWorkArea++ = (BYTE)stationID;
+   if (error)
+   { // error flag 80 + error meaning byte
+      *pWorkArea++ = (BYTE)(functionCode|0x80);
+      *pWorkArea++ = (BYTE)errorCode;
+   }
+   else
+   {
+      // normal processing
+      *pWorkArea++ = (BYTE)functionCode;
+      switch (functionCode)
+      {
+          case MOD_WRITE_HOLDING        : 
+          case MOD_WRITE_EXTENDED       : 
+             // HF fixed the return address.
+             *pWorkArea++ = HIBYTE(address);
+             *pWorkArea++ = LOBYTE(address);
+             *pWorkArea++ = HIBYTE(byteCount/2);
+             *pWorkArea++ = LOBYTE(byteCount/2);
+             break;
+          case MOD_WRITE_SINGLEHOLDING :
+             *pWorkArea++ = HIBYTE(address); // CDB fixed return address rev 7.0
+             *pWorkArea++ = LOBYTE(address);
+             break;
+          case MOD_MASKEDWRITE_HOLDING:
+             *pWorkArea++ = HIBYTE(address);
+             *pWorkArea++ = LOBYTE(address);
+             //add the masks
+             *pWorkArea++ = HIBYTE(m_andMask);
+             *pWorkArea++ = LOBYTE(m_andMask);
+             *pWorkArea++ = HIBYTE(m_orMask);
+             *pWorkArea++ = LOBYTE(m_orMask);
+
+             break;
+          case MOD_WRITE_MULTIPLE_COILS : 
+             *pWorkArea++ = HIBYTE(address);
+             *pWorkArea++ = LOBYTE(address);
+             *pWorkArea++ = HIBYTE(byteCount);  // # bits actually
+             *pWorkArea++ = LOBYTE(byteCount);
+
+             break;
+          case MOD_WRITE_SINGLE_COIL    :
+             *pWorkArea++ = HIBYTE(address);  // fixed thanks to Joan Lluch-Zorrilla
+             *pWorkArea++ = LOBYTE(address);
+             break;
+          case MOD_READ_DIGITALS  : // in
+          case MOD_READ_COILS     : // out
+             numBytesData = (BYTE)ceil((float)byteCount/8.0);  // # registers*2
+             *pWorkArea++ = numBytesData; 
+             break;
+         case MOD_READ_EXCEPTION : // 07 Added 2015-01-13 by DL
+         case MOD_READ_DIAGNOSTIC : // 08 Added 2015-Dec-03 by DL
+		 case MOD_READ_SLAVEID :    // 11 Added 2015-Dec-15 by DL
+             break;                // 07 End of Add 2015-01-20 by DL
+          case MOD_READ_REGISTERS : 
+          case MOD_READ_HOLDING   :
+          case MOD_READ_EXTENDED  : 
+             numBytesData = byteCount*2;  // # registers*2
+             *pWorkArea++ = numBytesData; 
+             break;
+      }
+   }   
+   dataPtr = pWorkArea; // must now point to 1st byte of data
+
+   return (buffer);
+} // BuildMessagePreamble
+
+// ----------------------------- SetEthernetFrames --------------------------
+// supply FALSE for normal serial 232 frames
+BOOL CMODMessage::SetEthernetFrames(BOOL ethernetFrames/* = TRUE*/)
+{
+BOOL oldV = m_protocolEthernet;
+   m_protocolEthernet = ethernetFrames;
+   return (m_protocolEthernet);
+}
+
+// ------------------------------ BuildMessageEnd -------------------------------
+// PURPOSE: glue a CRC onto the end of the message
+// totalLen must be = the full telegram length (+CRC) when this is called.
+CHAR * CMODMessage::BuildMessageEnd()
+{
+WORD length;
+BYTE *pCrcStart = (BYTE*)buffer;
+WORD crc = 0xFFFF;
+BYTE *crcPtr;
+
+   // Add the CRC bytes
+   length = totalLen - MODBUS_CRC_LEN; //calc the CRC of all bytes but the 2 CRC bytes
+
+   CalcCRC(pCrcStart, length, &crc);
+   crcPtr = (BYTE*)&buffer[length];
+   *(WORD *)crcPtr = crc;
+
+   return (buffer);
+} // BuildMessageEnd

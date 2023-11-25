@@ -1,0 +1,1 @@
+             numBytesData = byteCount*2;  // # registers*2  TODO  what?? is numBytesData = numOfRegisters?

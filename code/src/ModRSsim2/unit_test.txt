@@ -1,0 +1,68 @@
+1. check that port is in listenign status:
+	netstat -an |find "LISTENING" |findstr "5030" 
+
+2. check read and write message
+request:
+- READ REGISTER 
+- start adress 1
+- numbuer of words 2
+expected repons
+RX 0002 0001 0002 
+TX 0002 XXXX YYYY   --> X Y = data from sim
+
+3. check GetAddressArea
+// reads
+#define SIM_READ_COILS           0x01     // protocol cmd 1
+#define SIM_READ_DIGITALS        0x02     // command 2 (read inputs)
+#define SIM_READ_HOLDING         0x03
+#define SIM_READ_REGISTERS       0x04     // analog input registers
+// writes
+#define SIM_WRITE_COILS          0x05     // un-implemented?
+#define SIM_WRITE_DIGITALS       0x06     // tested, preset single register
+#define SIM_WRITE_HOLDING        0x07
+#define SIM_WRITE_REGISTERS      0x08
+
+      case SIM_READ_COILS      : return(0); break;
+      case SIM_READ_DIGITALS   : return(1); break;
+      case SIM_READ_REGISTERS  : return(2); break;   
+      case SIM_READ_HOLDING    : return(3); break;
+      // write commands      
+      case SIM_WRITE_COILS      : return(0); break;
+      case SIM_WRITE_DIGITALS   : return(1); break;
+      case SIM_WRITE_REGISTERS  : return(2); break;   
+      case SIM_WRITE_HOLDING    : return(3); break;
+   }
+   return(9); //Default here for now, Should never get here anyway!  (9 = error)
+
+1. client_socket.sendall(b'\x00\x01\x03\x04\x05\x06')  -> GetAddressArea = 00
+SIM_READ_DIGITALS
+2. client_socket.sendall(b'\x00\x02\x03\x04\x05\x06')  -> GetAddressArea = 01
+SIM_WRITE_HOLDING
+2. client_socket.sendall(b'\x00\x07\x03\x04\x05\x06')  -> GetAddressArea = 03
+Exception
+1. client_socket.sendall(b'\x01\x02\x03\x04\x05\x06')  -> GetAddressArea = 09  
+
+----------------
+4.  Write coils:
+      case SIM_WRITE_COILS:
+          bitCount = UnPackField(&pTelePtr, 2); // 2 chars, the count is in bits
+         overalLen = (WORD)ceil(bitCount/8.0);
+         coilByteCount = *pTelePtr++; // increment past the #bytes byte which is the # bytes of data to expect (max 255)
+         overalLen += 3;
+		 
+1. write arress 1 , 2 coils (data bytes = coisl/8bits per byte = 1 byte)
+client_socket.sendall(b'\[x00\x05][\x00\x01][\x00\x02]\xFF')  -> GetAddressArea = 01  bitCount =1   overalLen = 5 (4+1) 
+2. adrss 7
+   no of coils 300 (12C)
+   no of bytes 300/8 (37.5) 
+client_socket.sendall(b'\x00\x05\x00\x07\x01\x2C\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF')  
+Expected / recieved
+-> GetAddressArea = 07  /07
+->bitCount = 300 / 0x12C    -> OK
+->byteCount = 38 / 0x26 -> OK
+->overalLen = 42 / 2A -> 0K
+
+
+byteCount looks like not recet when new message comes in. 
+-> What if first message will processing wehn 2nd message comes in?   
+
